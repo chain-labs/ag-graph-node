@@ -17,7 +17,6 @@ use crate::codec;
 // Logging the block is too verbose, so this strips the block from the trigger for Debug.
 impl std::fmt::Debug for ArweaveTrigger {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        #[allow(unused)]
         #[derive(Debug)]
         pub enum MappingTriggerWithoutBlock {
             Block,

@@ -1905,8 +1905,7 @@ pub(crate) async fn get_calls(
             } else {
                 client
                     .rpc()?
-                    .cheapest_with(capabilities)
-                    .await?
+                    .cheapest_with(capabilities)?
                     .calls_in_block(
                         &logger,
                         subgraph_metrics.clone(),

@@ -17,11 +17,20 @@ pub enum ChainClient<C: Blockchain> {
 
 impl<C: Blockchain> ChainClient<C> {
     pub fn new_firehose(firehose_endpoints: FirehoseEndpoints) -> Self {
-        Self::Firehose(firehose_endpoints)
+        Self::new(firehose_endpoints, C::Client::default())
     }
+    pub fn new(firehose_endpoints: FirehoseEndpoints, adapters: C::Client) -> Self {
+        // If we can get a firehose endpoint then we should prioritise it.
+        // the reason we want to test this by getting an adapter is because
+        // adapter limits in the configuration can effectively disable firehose
+        // by setting a limit to 0.
+        // In this case we should fallback to an rpc client.
+        let firehose_available = firehose_endpoints.endpoint().is_ok();
 
-    pub fn new_rpc(rpc: C::Client) -> Self {
-        Self::Rpc(rpc)
+        match firehose_available {
+            true => Self::Firehose(firehose_endpoints),
+            false => Self::Rpc(adapters),
+        }
     }
 
     pub fn is_firehose(&self) -> bool {
@@ -31,9 +40,9 @@ impl<C: Blockchain> ChainClient<C> {
         }
     }
 
-    pub async fn firehose_endpoint(&self) -> anyhow::Result<Arc<FirehoseEndpoint>> {
+    pub fn firehose_endpoint(&self) -> anyhow::Result<Arc<FirehoseEndpoint>> {
         match self {
-            ChainClient::Firehose(endpoints) => endpoints.endpoint().await,
+            ChainClient::Firehose(endpoints) => endpoints.endpoint(),
             _ => Err(anyhow!("firehose endpoint requested on rpc chain client")),
         }
     }

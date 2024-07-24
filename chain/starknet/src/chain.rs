@@ -14,10 +14,7 @@ use graph::{
         RuntimeAdapter as RuntimeAdapterTrait,
     },
     cheap_clone::CheapClone,
-    components::{
-        adapter::ChainId,
-        store::{DeploymentCursorTracker, DeploymentLocator},
-    },
+    components::store::{DeploymentCursorTracker, DeploymentLocator},
     data::subgraph::UnifiedMappingApiVersion,
     env::EnvVars,
     firehose::{self, FirehoseEndpoint, ForkStep},
@@ -43,7 +40,7 @@ use crate::{
 
 pub struct Chain {
     logger_factory: LoggerFactory,
-    name: ChainId,
+    name: String,
     client: Arc<ChainClient<Self>>,
     chain_store: Arc<dyn ChainStore>,
     metrics_registry: Arc<MetricsRegistry>,
@@ -59,9 +56,8 @@ pub struct FirehoseMapper {
 
 pub struct TriggersAdapter;
 
-#[async_trait]
 impl BlockchainBuilder<Chain> for BasicBlockchainBuilder {
-    async fn build(self, _config: &Arc<EnvVars>) -> Chain {
+    fn build(self, _config: &Arc<EnvVars>) -> Chain {
         Chain {
             logger_factory: self.logger_factory,
             name: self.name,
@@ -152,7 +148,7 @@ impl Blockchain for Chain {
         logger: &Logger,
         number: BlockNumber,
     ) -> Result<BlockPtr, IngestorError> {
-        let firehose_endpoint = self.client.firehose_endpoint().await?;
+        let firehose_endpoint = self.client.firehose_endpoint()?;
 
         firehose_endpoint
             .block_ptr_for_number::<codec::Block>(logger, number)
@@ -160,17 +156,15 @@ impl Blockchain for Chain {
             .await
     }
 
-    fn runtime(
-        &self,
-    ) -> graph::anyhow::Result<(Arc<dyn RuntimeAdapterTrait<Self>>, Self::DecoderHook)> {
-        Ok((Arc::new(NoopRuntimeAdapter::default()), NoopDecoderHook))
+    fn runtime(&self) -> (Arc<dyn RuntimeAdapterTrait<Self>>, Self::DecoderHook) {
+        (Arc::new(NoopRuntimeAdapter::default()), NoopDecoderHook)
     }
 
     fn chain_client(&self) -> Arc<ChainClient<Self>> {
         self.client.clone()
     }
 
-    async fn block_ingestor(&self) -> Result<Box<dyn BlockIngestor>> {
+    fn block_ingestor(&self) -> Result<Box<dyn BlockIngestor>> {
         let ingestor = FirehoseBlockIngestor::<crate::Block, Self>::new(
             self.chain_store.cheap_clone(),
             self.chain_client(),
