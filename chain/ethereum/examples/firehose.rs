@@ -2,9 +2,10 @@ use anyhow::Error;
 use graph::{
     endpoint::EndpointMetrics,
     env::env_var,
-    firehose::{self, FirehoseEndpoint, NoopGenesisDecoder, SubgraphLimit},
+    firehose::SubgraphLimit,
     log::logger,
     prelude::{prost, tokio, tonic, MetricsRegistry},
+    {firehose, firehose::FirehoseEndpoint},
 };
 use graph_chain_ethereum::codec;
 use hex::ToHex;
@@ -38,7 +39,6 @@ async fn main() -> Result<(), Error> {
         false,
         SubgraphLimit::Unlimited,
         metrics,
-        NoopGenesisDecoder::boxed(),
     ));
 
     loop {

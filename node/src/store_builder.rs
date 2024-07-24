@@ -1,6 +1,8 @@
+use std::collections::BTreeMap;
 use std::iter::FromIterator;
 use std::{collections::HashMap, sync::Arc};
 
+use graph::blockchain::ChainIdentifier;
 use graph::futures03::future::join_all;
 use graph::prelude::{o, MetricsRegistry, NodeId};
 use graph::url::Url;
@@ -165,14 +167,14 @@ impl StoreBuilder {
         pools: HashMap<ShardName, ConnectionPool>,
         subgraph_store: Arc<SubgraphStore>,
         chains: HashMap<String, ShardName>,
-        networks: Vec<String>,
+        networks: BTreeMap<String, ChainIdentifier>,
         registry: Arc<MetricsRegistry>,
     ) -> Arc<DieselStore> {
         let networks = networks
             .into_iter()
-            .map(|name| {
+            .map(|(name, idents)| {
                 let shard = chains.get(&name).unwrap_or(&*PRIMARY_SHARD).clone();
-                (name, shard)
+                (name, idents, shard)
             })
             .collect();
 
@@ -279,13 +281,13 @@ impl StoreBuilder {
 
     /// Return a store that combines both a `Store` for subgraph data
     /// and a `BlockStore` for all chain related data
-    pub fn network_store(self, networks: Vec<impl Into<String>>) -> Arc<DieselStore> {
+    pub fn network_store(self, networks: BTreeMap<String, ChainIdentifier>) -> Arc<DieselStore> {
         Self::make_store(
             &self.logger,
             self.pools,
             self.subgraph_store,
             self.chains,
-            networks.into_iter().map(Into::into).collect(),
+            networks,
             self.registry,
         )
     }

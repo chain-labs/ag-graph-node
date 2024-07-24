@@ -1,5 +1,4 @@
-use graph::components::adapter::ProviderName;
-use graph::endpoint::{EndpointMetrics, RequestLabels};
+use graph::endpoint::{EndpointMetrics, Provider, RequestLabels};
 use jsonrpc_core::types::Call;
 use jsonrpc_core::Value;
 
@@ -16,7 +15,7 @@ pub enum Transport {
     RPC {
         client: http::Http,
         metrics: Arc<EndpointMetrics>,
-        provider: ProviderName,
+        provider: Provider,
     },
     IPC(ipc::Ipc),
     WS(ws::WebSocket),

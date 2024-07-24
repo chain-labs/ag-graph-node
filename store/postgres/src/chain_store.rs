@@ -1658,6 +1658,8 @@ pub struct ChainStore {
     pool: ConnectionPool,
     pub chain: String,
     pub(crate) storage: data::Storage,
+    pub chain_identifier: ChainIdentifier,
+    genesis_block_ptr: BlockPtr,
     status: ChainStatus,
     chain_head_update_sender: ChainHeadUpdateSender,
     // TODO: We currently only use this cache for
@@ -1675,6 +1677,7 @@ impl ChainStore {
         logger: Logger,
         chain: String,
         storage: data::Storage,
+        net_identifier: &ChainIdentifier,
         status: ChainStatus,
         chain_head_update_sender: ChainHeadUpdateSender,
         pool: ConnectionPool,
@@ -1689,8 +1692,10 @@ impl ChainStore {
             pool,
             chain,
             storage,
+            genesis_block_ptr: BlockPtr::new(net_identifier.genesis_block_hash.clone(), 0),
             status,
             chain_head_update_sender,
+            chain_identifier: net_identifier.clone(),
             recent_blocks_cache,
             lookup_herd,
         }
@@ -1811,12 +1816,6 @@ impl ChainStore {
             self.upsert_block(block).await.expect("can upsert block");
         }
 
-        self.set_chain_identifier(&ChainIdentifier {
-            net_version: "0".to_string(),
-            genesis_block_hash: BlockHash::try_from(genesis_hash).expect("valid block hash"),
-        })
-        .expect("unable to set chain identifier");
-
         use public::ethereum_networks as n;
         diesel::update(n::table.filter(n::name.eq(&self.chain)))
             .set((
@@ -1875,12 +1874,7 @@ impl ChainStore {
 #[async_trait]
 impl ChainStoreTrait for ChainStore {
     fn genesis_block_ptr(&self) -> Result<BlockPtr, Error> {
-        let ident = self.chain_identifier()?;
-
-        Ok(BlockPtr {
-            hash: ident.genesis_block_hash,
-            number: 0,
-        })
+        Ok(self.genesis_block_ptr.clone())
     }
 
     async fn upsert_block(&self, block: Arc<dyn Block>) -> Result<(), Error> {
@@ -1921,7 +1915,6 @@ impl ChainStoreTrait for ChainStore {
 
         let (missing, ptr) = {
             let chain_store = self.clone();
-            let genesis_block_ptr = self.genesis_block_ptr()?.hash_as_h256();
             self.pool
                 .with_conn(move |conn, _| {
                     let candidate = chain_store
@@ -1940,7 +1933,7 @@ impl ChainStoreTrait for ChainStore {
                             &chain_store.chain,
                             first_block as i64,
                             ptr.hash_as_h256(),
-                            genesis_block_ptr,
+                            chain_store.genesis_block_ptr.hash_as_h256(),
                         )
                         .map_err(CancelableError::from)?
                     {
@@ -2303,32 +2296,8 @@ impl ChainStoreTrait for ChainStore {
         .await
     }
 
-    fn set_chain_identifier(&self, ident: &ChainIdentifier) -> Result<(), Error> {
-        use public::ethereum_networks as n;
-
-        let mut conn = self.pool.get()?;
-        diesel::update(n::table.filter(n::name.eq(&self.chain)))
-            .set((
-                n::genesis_block_hash.eq(ident.genesis_block_hash.hash_hex()),
-                n::net_version.eq(&ident.net_version),
-            ))
-            .execute(&mut conn)?;
-
-        Ok(())
-    }
-
-    fn chain_identifier(&self) -> Result<ChainIdentifier, Error> {
-        let mut conn = self.pool.get()?;
-        use public::ethereum_networks as n;
-        let (genesis_block_hash, net_version) = n::table
-            .select((n::genesis_block_hash, n::net_version))
-            .filter(n::name.eq(&self.chain))
-            .get_result::<(BlockHash, String)>(&mut conn)?;
-
-        Ok(ChainIdentifier {
-            net_version,
-            genesis_block_hash,
-        })
+    fn chain_identifier(&self) -> &ChainIdentifier {
+        &self.chain_identifier
     }
 }
 

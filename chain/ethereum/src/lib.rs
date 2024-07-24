@@ -32,6 +32,7 @@ pub use crate::adapter::{
     ProviderEthRpcMetrics, SubgraphEthRpcMetrics, TriggerFilter,
 };
 pub use crate::chain::Chain;
+pub use crate::network::EthereumNetworks;
 pub use graph::blockchain::BlockIngestor;
 
 #[cfg(test)]

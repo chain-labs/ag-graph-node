@@ -3,11 +3,9 @@ use std::{sync::Arc, time::Duration};
 use crate::mapper::Mapper;
 use anyhow::{Context, Error};
 use graph::blockchain::block_stream::{BlockStreamError, FirehoseCursor};
-use graph::blockchain::BlockchainKind;
 use graph::blockchain::{
     client::ChainClient, substreams_block_stream::SubstreamsBlockStream, BlockIngestor,
 };
-use graph::components::adapter::ChainId;
 use graph::prelude::MetricsRegistry;
 use graph::slog::trace;
 use graph::substreams::Package;
@@ -29,7 +27,7 @@ pub struct SubstreamsBlockIngestor {
     chain_store: Arc<dyn ChainStore>,
     client: Arc<ChainClient<super::Chain>>,
     logger: Logger,
-    chain_name: ChainId,
+    chain_name: String,
     metrics: Arc<MetricsRegistry>,
 }
 
@@ -38,7 +36,7 @@ impl SubstreamsBlockIngestor {
         chain_store: Arc<dyn ChainStore>,
         client: Arc<ChainClient<super::Chain>>,
         logger: Logger,
-        chain_name: ChainId,
+        chain_name: String,
         metrics: Arc<MetricsRegistry>,
     ) -> SubstreamsBlockIngestor {
         SubstreamsBlockIngestor {
@@ -194,10 +192,7 @@ impl BlockIngestor for SubstreamsBlockIngestor {
         }
     }
 
-    fn network_name(&self) -> ChainId {
+    fn network_name(&self) -> String {
         self.chain_name.clone()
-    }
-    fn kind(&self) -> BlockchainKind {
-        BlockchainKind::Substreams
     }
 }
